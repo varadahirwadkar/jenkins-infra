@@ -156,6 +156,7 @@ pipeline {
             checkInfraError()
             processScaleResults()
             dbDashboardUpdateScale()
+            cleanupPowerVSResources()
             notifyBySlack(currentBuild.result, env.MESSAGE)
             cleanWs()
         }

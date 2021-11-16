@@ -1,5 +1,21 @@
 @Library('jenkins-upstream-library') _
 
+def INSTANCE_NAME_LIST = [
+                    "ocp-cicd-dallas",
+                    "ocp-cicd-dallas-12",
+                    "ocp-cicd-frankfurt-01",
+                    "ocp-cicd-frankfurt-02",
+                    "ocp-cicd-london-04",
+                    "ocp-cicd-london-06",
+                    "ocp-cicd-montreal-01",
+                    "ocp-cicd-osaka-21",
+                    "ocp-cicd-saopaulo-01",
+                    "ocp-cicd-sydney-04",
+                    "ocp-cicd-tokyo-04",
+                    "ocp-cicd-toronto-01",
+                    "ocp-cicd-washington"
+                    ]
+
 pipeline {
     agent {
 	    kubernetes {
@@ -27,8 +43,10 @@ pipeline {
 				    ibmcloud login -a cloud.ibm.com -r us-south -g ocp-cicd-resource-group -q --apikey=${IBMCLOUD_API_KEY}
 				    ibmcloud pi service-target ${CRN}
 				    chmod +x ./scripts/cleanup-powervs-resources.sh
-				    ./scripts/cleanup-powervs-resources.sh 2>&1 | tee cleanup.log
 				'''
+	             INSTANCE_NAME_LIST.each { item ->
+	             sh(returnStatus: false, returnStdout: false, script: "./scripts/cleanup-powervs-resources.sh -s '${item}' -u 'rdr-cicd' 2>&1 | tee -a cleanup.log")
+	             }
 		        }
                  }
             }

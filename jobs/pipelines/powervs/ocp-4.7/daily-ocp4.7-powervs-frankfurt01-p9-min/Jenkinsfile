@@ -162,6 +162,7 @@ pipeline {
             checkInfraError()
             processE2eResults()
             dbDashboardUpdateE2e()
+            cleanupPowerVSResources()
             notifyBySlack(currentBuild.result, env.MESSAGE)
             cleanWs()
         }
