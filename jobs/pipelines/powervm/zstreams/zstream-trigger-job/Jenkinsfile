@@ -1,0 +1,134 @@
+pipeline {
+    agent any
+
+    stages {
+       stage('Clone Repo') {
+            steps {
+                git branch: 'main', url: 'https://github.com/varadahirwadkar/openshift-build-tracker.git'
+            }
+       }
+    
+        stage("Check changeset") {
+            steps {
+                script {
+                    filenames = getChangedFilesList().toSet()    
+                    println "filenames:"
+                    println filenames    
+                    if(filenames != null){
+                        for (int i = 0; i < filenames.size(); i++) {
+                            filename        = filenames[i].trim()                      
+                            echo "Modified Files: ${filenames[i]}"
+ 
+                            (release, next_release, next_release_file) = getReleases(filename)
+                            ocp_build     = readFile "${filename}"
+                            latestBuild   = ocp_build.trim()
+                            
+                            if (latestBuild != "" && latestBuild!=null){
+                                currentStableBuild_url  = getStableBuild(latestBuild)
+                                nextStableBuild_url     = next_release_builds(next_release_file)
+                
+                                echo "Triggering builds: ${latestBuild}, ${currentStableBuild_url}, ${nextStableBuild_url}"
+                                triggerBuild(release, latestBuild, currentStableBuild_url, nextStableBuild_url, next_release)
+                            }
+                        }
+                    }      
+                }
+            }
+        }
+    }
+}
+
+@NonCPS
+def getChangedFilesList() {
+    changedFiles = []
+    for (changeLogSet in currentBuild.changeSets) { 
+        for (entry in changeLogSet.getItems()) { 
+            for (file in entry.getAffectedFiles()) {
+                def file_present = "${file.path}" =~ /^versions\/[0-9]+\.[0-9]+\.txt$/
+                if (file_present.find()){ 
+                    changedFiles.add(file.getPath()) 
+                }
+            }
+        }
+    }
+    return changedFiles
+}
+
+def getReleases(filename){
+  currentRelease = filename.substring(filename.indexOf("/")+1,filename.indexOf(".txt"))
+
+  def version = currentRelease.substring(currentRelease.indexOf(".")+1,currentRelease.size())
+  nextRelease = currentRelease.replace("."+version, "."+(version.toInteger()+1).toString())
+  
+  nextReleaseFile = filename.replace(currentRelease,nextRelease.toString())
+
+  return [currentRelease, nextRelease, nextReleaseFile]
+}
+
+def getStableBuild(ocp_build){
+    version = ocp_build.substring(ocp_build.indexOf(".",3)+1, ocp_build.indexOf("-"))
+    if (version != "0"){
+        build         = (version.toInteger()-1).toString() + "-ppc64le"
+        stableBuild   = ocp_build.replace(version + '-ppc64le', build)
+    }else{
+        stableBuild = ocp_build
+    }
+    return 'quay.io/openshift-release-dev/ocp-release:' + stableBuild
+}
+
+def next_release_builds(release_file){
+    if (fileExists(release_file)){
+        nextbuild     = readFile "${release_file}"
+        nextbuild     = nextbuild.trim()
+        if (nextbuild != "" && nextbuild != null){
+            files = sh (script: 'git log --oneline --name-only --after=4.days.ago| grep versions/.*txt', returnStdout: true).trim().split("\n")
+
+            for (int i = 0; i < files.size(); i++) {
+                files[i] = files[i].trim()
+            }
+
+            if (files.contains(release_file)){
+                nextbuild = getStableBuild(nextbuild)
+            }else{
+                nextbuild = 'quay.io/openshift-release-dev/ocp-release:' + nextbuild
+            }
+        }
+    }else{
+        nextbuild = "default"
+    }
+    return nextbuild                    
+}
+
+void triggerBuild(release, latestBuild, currentStableBuild, nextStableBuild, next_release){
+    keepfor = "720"
+    latestBuild = "quay.io/openshift-release-dev/ocp-release:${latestBuild}"
+    echo "Latest Build:: $latestBuild"
+    build job: 'ZStream_Direct_Deploy', wait: false,parameters: [
+        string(name: 'Release', value: "${release}"),
+        string(name: 'Build', value: "${latestBuild}"),
+        string(name: 'KeepFor', value: "${keepfor}")
+    ]       
+    sleep 600
+
+    if (latestBuild != currentStableBuild ){
+        echo "Current Release Stable Build: $currentStableBuild"
+        build job: 'ZStream_Current_Stable_Upgrade', wait: false,parameters: [
+            string(name: 'Release', value: "${release}"),
+            string(name: 'CurrentBuild', value: "${currentStableBuild}"),
+            string(name: 'UpgradeBuild', value: "${latestBuild}"),
+            string(name: 'KeepFor', value: "${keepfor}")
+        ]       
+    sleep 600
+    }
+    
+    if (nextStableBuild != "default"){
+        echo "Next Release Stable Build: ${nextStableBuild}"
+        build job: 'ZStream_Next_Stable_Upgrade', wait: false,parameters: [
+            string(name: 'Release', value: "${release}"),
+            string(name: 'UpgradeRelease', value: "${next_release}"),
+            string(name: 'CurrentBuild', value: "${latestBuild}"),
+            string(name: 'UpgradeBuild', value: "${nextStableBuild}"),
+            string(name: 'KeepFor', value: "${keepfor}")
+        ]       
+    }
+}
