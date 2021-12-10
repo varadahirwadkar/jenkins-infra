@@ -98,7 +98,7 @@ def call() {
             env.INSTANCE_NAME = "rdr-cicd"
             env.MOUNT_ETCD_RAMDISK="true"
             env.CHRONY_CONFIG="true"
-            env.SCG_ID = "259fb507-3ac0-49bd-973b-c27da9ed0537"
+            env.SCG_ID = "c5045866-7a78-4b5b-8ae8-061340be64f8"
             env.VOLUME_STORAGE_TEMPLATE = "c340f1_v7k base template"
 
             //e2e variables
