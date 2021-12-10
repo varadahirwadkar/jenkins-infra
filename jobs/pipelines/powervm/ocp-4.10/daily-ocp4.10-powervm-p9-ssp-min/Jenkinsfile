@@ -58,7 +58,7 @@ pipeline {
                 setupClusterConfig("${CONFIG_TYPE}")
                 script {
                 //ssp specific variables
-                env.SCG_ID = "a10b9c74-2598-415e-8da7-728d1598fcb3"
+                env.SCG_ID = "06b0155e-d6a5-4ca9-b15f-ff056766c0b0"
                 env.VOLUME_STORAGE_TEMPLATE = "ocp_ssp base template"
                 }
             }
