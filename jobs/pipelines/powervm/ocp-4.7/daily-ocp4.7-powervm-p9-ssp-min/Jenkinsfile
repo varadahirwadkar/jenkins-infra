@@ -25,7 +25,7 @@ pipeline {
         //Env constants
         HARDWARE_CHOSE = "P9"
         TERRAFORM_VER = "0.13.0"
-        AVAILABILITY_ZONE = "p9"
+        AVAILABILITY_ZONE = "p9_pvm"
         OCP_RELEASE="4.7"
         TARGET = "deploy-openshift4-powervc"
         TEMPLATE_FILE = ".${TARGET}.tfvars.template"
@@ -92,11 +92,11 @@ pipeline {
                             echo "latest-${OCP_RELEASE}-build.txt file does not exist. Please check mirror-openshift-release job"
                             throw err
                         }
-                        env.RHCOS_IMAGE_NAME = "ssp-rhcos-47.82"
-                        env.RHCOS_IMAGE_ID = "39ccd295-629d-466f-9f7e-0cd4e9d04e48"
+                        env.RHCOS_IMAGE_NAME = "ssp-cicd-rhcos_47.84.202108061004-0-openstack.ppc64le"
+                        env.RHCOS_IMAGE_ID = "31020f46-01ba-4c37-911c-edde829734f3"
 
-                        env.BASTION_IMAGE_NAME = "ssp-rhel82"
-                        env.BASTION_IMAGE_ID = "cdf06d6a-a832-4d5b-97d8-407441c47ea2"
+                        env.BASTION_IMAGE_NAME = "ssp-cicd-rhel8_3-2021-03-24-ppc64le"
+                        env.BASTION_IMAGE_ID = "9d159024-2740-436b-b0fe-d0113f22996c"
                         if (env.DEPLOY_MASTER == "false")
                         {
                             echo "Cluster cant deploy without master"
