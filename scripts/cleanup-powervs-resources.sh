@@ -1,21 +1,53 @@
 #!/bin/bash
+while getopts "u:s:" opt
+do
+   case "$opt" in
+      u ) cluster_id="$OPTARG" ;;
+      s ) service_name="$OPTARG" ;;
+      ? ) echo "Wrong Args" ;;
+   esac
+done
+ibmcloud -v
+if [ $? -ne 0 ]; then
+   apt update; apt-get install -y wget
+   wget https://download.clis.cloud.ibm.com/ibm-cloud-cli/2.1.1/IBM_Cloud_CLI_2.1.1_amd64.tar.gz --no-check-certificate
+   tar -xvzf "./IBM_Cloud_CLI_2.1.1_amd64.tar.gz"
+   ./Bluemix_CLI/install
+   ibmcloud update -f
+   ibmcloud config --check-version false
+   ibmcloud plugin install power-iaas -f
+   curl -sL https://raw.githubusercontent.com/ppc64le-cloud/pvsadm/master/get.sh | VERSION="v0.1.3" FORCE=1 bash
+   ibmcloud login -a cloud.ibm.com -r us-south -g ocp-cicd-resource-group -q --apikey=${IBMCLOUD_API_KEY}
+   ibmcloud pi service-target "${CRN}"
+fi
 #Purge ssh keys
-keys=`ibmcloud pi keys | grep "rdr-cicd*" | cut -d' ' -f1`
+keys=$(ibmcloud pi keys | grep "$cluster_id*" | cut -d' ' -f1)
 for key in $keys
 do
          ibmcloud pi key-delete "$key"
 done
-
-instances="ocp-cicd-london-06 ocp-cicd-toronto-01"
-
-for instance in $instances
-do
+if [ -n "$service_name" ]; then
+  #Cleaning from clean job
   #Purge vms
-  pvsadm purge vms -n $instance  --regexp "rdr-cicd*" --no-prompt
+  pvsadm purge vms -n $service_name  --regexp "$cluster_id*" --no-prompt --ignore-errors
 
   #Purge volumes
-  pvsadm purge volumes -n $instance  --regexp "rdr-cicd*" --no-prompt
+  pvsadm purge volumes -n $service_name  --regexp "$cluster_id*" --no-prompt --ignore-errors
 
+  #Added sleep to give time to delete vms
+  sleep 300
   #Purge networks
-  pvsadm purge networks -n $instance  --regexp "rdr-cicd*" --no-prompt
-done
+  pvsadm purge networks -n $service_name  --regexp "$cluster_id*" --no-prompt --ignore-errors
+else
+  #Cleaning as a part of script
+  #Purge vms
+  pvsadm purge vms -i ${SERVICE_INSTANCE_ID}  --regexp "$cluster_id*" --no-prompt --ignore-errors
+
+  #Purge volumes
+  pvsadm purge volumes -i ${SERVICE_INSTANCE_ID}  --regexp "$cluster_id*" --no-prompt --ignore-errors
+
+  #Added sleep to give time to delete vms
+  sleep 300
+  #Purge networks
+  pvsadm purge networks -i ${SERVICE_INSTANCE_ID}  --regexp "$cluster_id*" --no-prompt --ignore-errors
+fi
