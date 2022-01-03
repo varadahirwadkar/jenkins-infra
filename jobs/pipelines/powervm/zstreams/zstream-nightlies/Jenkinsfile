@@ -8,11 +8,6 @@ pipeline {
             label 'jump-vpc-x86_64'
         }
     }
-    // parameters {
-    //     string(defaultValue: '', description: 'Build(quay image or build number)', name: 'Build')
-    //     string(defaultValue: '', description: 'Build Release', name: 'Release')
-    //     string(defaultValue: '720', description: 'Enter time(in Minutes) to retain the cluster', name: 'KeepFor')
-    // }
 
     environment {
         //users and credentials. All must be defined in Jenkins Credentials
@@ -29,9 +24,7 @@ pipeline {
         OS_AUTH_URL=credentials('URL_SCNLPOWERCLOUD')
 
         //Parameters
-        //OCP_RELEASE="${params.Release}"
         CONFIG_TYPE="min"
-        //BUILD="${params.Build}"
         TIMEOUT = "0"
         ENABLE_E2E_TEST="true"
 
@@ -251,13 +244,13 @@ pipeline {
                         echo ""
                     }
                     try {
-                        TIMEOUT_MIN = TIMEOUT.toInteger()
-                        if ( TIMEOUT_MIN != 0 )
-                        {
-                            TIMEOUT_SEC=TIMEOUT_MIN*60
-                        }
-                        echo "HOLDING THE CLUSTER TEAR DOWN FOR ${TIMEOUT_MIN} MINUTES"
-                        sleep TIMEOUT_SEC
+                            TIMEOUT_MIN = TIMEOUT.toInteger()
+                            if ( TIMEOUT_MIN != 0 )
+                            {
+                                TIMEOUT_SEC=TIMEOUT_MIN*60
+                                echo "HOLDING THE CLUSTER TEAR DOWN FOR ${TIMEOUT_MIN} MINUTES"
+                                sleep TIMEOUT_SEC
+                            }
                         }
                     catch (err) {
                             echo 'Error ! Timeout stage failed!'
@@ -270,7 +263,7 @@ pipeline {
     }
     post {
         always {
-
+            archiveArtifacts allowEmptyArchive: true, artifacts: 'builds.txt', fingerprint: true, onlyIfSuccessful: false
             archiveAllArtifacts("deploy/conformance-parallel-out.txt.tar.gz", "deploy/summary.txt", "deploy/vars.tfvars",
                 "cpu-pre.pprof", "heap-pre.pprof", "prometheus.tar.gz", "deploy/cron.log", "must-gather.tar.gz")
             cleanupOcp4Cluster()
